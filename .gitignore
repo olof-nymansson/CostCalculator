@@ -1,3 +1,28 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
+*.tsbuildinfo
+
+# Test coverage
+coverage
+
+# Environment and local overrides
+.env
+.env.*
 *.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/
