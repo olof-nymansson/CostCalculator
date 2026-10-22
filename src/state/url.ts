@@ -1,5 +1,5 @@
-import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
-import { err } from '../core/types';
+import { Inflate, deflateSync, strFromU8, strToU8 } from 'fflate';
+import { err, ok } from '../core/types';
 import type { Result } from '../core/types';
 import { emptyState } from './model';
 import type { AppState, ParseError } from './model';
@@ -12,10 +12,16 @@ import { parseState } from './validate';
 export const SOFT_LIMIT_LENGTH = 2000;
 
 /**
- * Hashes longer than this are rejected before decoding. It bounds the memory a malicious link
- * can make the decompressor allocate (deflate expands at most ~1000x).
+ * Hashes longer than this are rejected before decoding. It is sized so that the largest state
+ * the app itself allows (see LIMITS, with incompressible text) still fits; a test guards this.
  */
-export const HARD_LIMIT_LENGTH = 8000;
+export const HARD_LIMIT_LENGTH = 65000;
+
+/**
+ * Decompressed JSON larger than this is rejected while inflating, so a small malicious link
+ * cannot expand into gigabytes (deflate can expand ~1000x). The largest valid state is well below.
+ */
+export const MAX_JSON_BYTES = 512 * 1024;
 
 const ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -55,6 +61,33 @@ const fromBase64Url = (text: string): Uint8Array | undefined => {
   return Uint8Array.from(bytes);
 };
 
+/** Inflates while counting output, and gives up as soon as it exceeds MAX_JSON_BYTES. */
+const inflateBounded = (bytes: Uint8Array): Result<Uint8Array, ParseError> => {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let exceeded = false;
+  try {
+    const inflater = new Inflate((chunk) => {
+      total += chunk.length;
+      if (total > MAX_JSON_BYTES) {
+        exceeded = true;
+        throw new Error('decompressed data too large');
+      }
+      chunks.push(chunk);
+    });
+    inflater.push(bytes, true);
+  } catch {
+    return err({ kind: exceeded ? 'too-long' : 'corrupt' });
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return ok(out);
+};
+
 /** Serializes the state as JSON, compresses it and encodes it as base64url (no leading '#'). */
 export const encodeState = (state: AppState): string =>
   toBase64Url(deflateSync(strToU8(JSON.stringify(state)), { level: 9 }));
@@ -67,9 +100,12 @@ export const decodeState = (hash: string): Result<AppState, ParseError> => {
   const bytes = fromBase64Url(text);
   if (!bytes) return err({ kind: 'corrupt' });
 
+  const inflated = inflateBounded(bytes);
+  if (!inflated.ok) return inflated;
+
   let raw: unknown;
   try {
-    raw = JSON.parse(strFromU8(inflateSync(bytes)));
+    raw = JSON.parse(strFromU8(inflated.value));
   } catch {
     return err({ kind: 'corrupt' });
   }

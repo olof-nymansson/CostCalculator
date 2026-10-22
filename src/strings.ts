@@ -93,6 +93,7 @@ export const strings = {
     } satisfies Record<ParseError['kind'], string>,
     action: {
       'invalid-name': 'Skriv ett namn på högst 40 tecken.',
+      'duplicate-name': 'Det finns redan en deltagare med det namnet.',
       'invalid-description': 'Skriv en beskrivning på högst 60 tecken.',
       'invalid-amount': 'Ange ett giltigt belopp, till exempel 249,50.',
       'invalid-split':

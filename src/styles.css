@@ -168,3 +168,11 @@ button.secondary {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+h2:focus {
+  outline: none;
+}
+
+h2:focus-visible {
+  outline: 3px solid var(--accent);
+}

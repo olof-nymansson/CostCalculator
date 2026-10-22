@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ParticipantId } from '../core/types';
 import type { Action, ActionError } from '../state/actions';
@@ -14,6 +14,22 @@ type Props = {
 
 const KINDS: readonly SplitKind[] = ['equal', 'shares', 'exact', 'percent'];
 
+/** The form field an error belongs to, so it can be marked and focused. */
+type ErrorField = 'description' | 'amount' | 'split' | undefined;
+
+type FormError = { readonly message: string; readonly field: ErrorField };
+
+const ERROR_ID = 'expense-error';
+
+const actionErrorField = (error: ActionError): ErrorField =>
+  error === 'invalid-description'
+    ? 'description'
+    : error === 'invalid-amount'
+      ? 'amount'
+      : error === 'invalid-split'
+        ? 'split'
+        : undefined;
+
 export function ExpenseForm({ participants, dispatch }: Props) {
   const t = strings.expenses;
   const [description, setDescription] = useState('');
@@ -22,7 +38,19 @@ export function ExpenseForm({ participants, dispatch }: Props) {
   const [kind, setKind] = useState<SplitKind>('equal');
   const [excluded, setExcluded] = useState<readonly string[]>([]);
   const [values, setValues] = useState<Readonly<Record<string, string>>>({});
-  const [error, setError] = useState<string | undefined>();
+  const [error, setError] = useState<FormError | undefined>();
+  const descriptionRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const splitRef = useRef<HTMLFieldSetElement>(null);
+
+  // Per-person input belongs to specific participants, so start over when the group changes.
+  const idsKey = participants.map((p) => p.id).join(',');
+  const [seenIdsKey, setSeenIdsKey] = useState(idsKey);
+  if (seenIdsKey !== idsKey) {
+    setSeenIdsKey(idsKey);
+    setExcluded([]);
+    setValues({});
+  }
 
   if (participants.length === 0) {
     return <p>{t.needParticipants}</p>;
@@ -32,6 +60,19 @@ export function ExpenseForm({ participants, dispatch }: Props) {
     ? payerId
     : (participants[0]?.id ?? '');
   const ids = participants.map((p) => p.id);
+
+  const fail = (message: string, field: ErrorField) => {
+    setError({ message, field });
+    const target =
+      field === 'description'
+        ? descriptionRef.current
+        : field === 'amount'
+          ? amountRef.current
+          : field === 'split'
+            ? splitRef.current?.querySelector('input')
+            : null;
+    target?.focus();
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -47,27 +88,37 @@ export function ExpenseForm({ participants, dispatch }: Props) {
       ids,
     );
     if (!built.ok) {
-      setError(
-        built.error === 'invalid-amount'
-          ? strings.errors.invalidAmount
-          : built.error === 'invalid-value'
-            ? kind === 'shares'
-              ? strings.errors.invalidShares
-              : strings.errors.invalidValue
-            : strings.errors.noSharers,
-      );
+      if (built.error === 'invalid-amount') {
+        fail(strings.errors.invalidAmount, 'amount');
+      } else if (built.error === 'invalid-value') {
+        fail(
+          kind === 'shares'
+            ? strings.errors.invalidShares
+            : strings.errors.invalidValue,
+          'split',
+        );
+      } else {
+        fail(strings.errors.noSharers, 'split');
+      }
       return;
     }
     const failure = dispatch({ type: 'addExpense', expense: built.value });
     if (failure) {
-      setError(strings.errors.action[failure]);
+      fail(strings.errors.action[failure], actionErrorField(failure));
       return;
     }
     setError(undefined);
     setDescription('');
     setAmount('');
     setValues({});
+    descriptionRef.current?.focus();
   };
+
+  /** aria attributes for the field an error belongs to. */
+  const invalidProps = (field: ErrorField) =>
+    error?.field === field
+      ? { 'aria-invalid': true as const, 'aria-describedby': ERROR_ID }
+      : {};
 
   const fieldLabel = (name: string) =>
     kind === 'shares'
@@ -82,19 +133,24 @@ export function ExpenseForm({ participants, dispatch }: Props) {
       <label>
         {t.description}
         <input
+          ref={descriptionRef}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           autoComplete="off"
+          {...invalidProps('description')}
         />
       </label>
       <label>
         {t.amount}
         <input
+          ref={amountRef}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           autoComplete="off"
-          aria-describedby="amount-hint"
+          {...(error?.field === 'amount'
+            ? invalidProps('amount')
+            : { 'aria-describedby': 'amount-hint' })}
         />
       </label>
       <small id="amount-hint">{t.amountHint}</small>
@@ -125,7 +181,12 @@ export function ExpenseForm({ participants, dispatch }: Props) {
           ))}
         </select>
       </label>
-      <fieldset aria-describedby="split-hint">
+      <fieldset
+        ref={splitRef}
+        aria-describedby={
+          error?.field === 'split' ? `split-hint ${ERROR_ID}` : 'split-hint'
+        }
+      >
         <legend>{t.splitLegend}</legend>
         <p id="split-hint">{t.splitHints[kind]}</p>
         {participants.map((p) =>
@@ -134,6 +195,7 @@ export function ExpenseForm({ participants, dispatch }: Props) {
               <input
                 type="checkbox"
                 checked={!excluded.includes(p.id)}
+                aria-invalid={error?.field === 'split' || undefined}
                 onChange={(e) =>
                   setExcluded(
                     e.target.checked
@@ -154,14 +216,15 @@ export function ExpenseForm({ participants, dispatch }: Props) {
                 }
                 inputMode="decimal"
                 autoComplete="off"
+                aria-invalid={error?.field === 'split' || undefined}
               />
             </label>
           ),
         )}
       </fieldset>
       {error && (
-        <p role="alert" className="error">
-          {error}
+        <p id={ERROR_ID} role="alert" className="error">
+          {error.message}
         </p>
       )}
       <button type="submit">{t.add}</button>

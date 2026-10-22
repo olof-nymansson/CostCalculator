@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ParticipantId } from '../core/types';
 import type { Action, ActionError } from '../state/actions';
@@ -13,12 +13,27 @@ type Props = {
 type RowProps = Pick<Props, 'dispatch'> & {
   readonly participant: Participant;
   readonly onError: (e: ActionError | undefined) => void;
+  /** Called after the participant has been removed, so focus can move somewhere sensible. */
+  readonly onRemoved: () => void;
 };
 
-function ParticipantRow({ participant, dispatch, onError }: RowProps) {
+function ParticipantRow({
+  participant,
+  dispatch,
+  onError,
+  onRemoved,
+}: RowProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(participant.name);
   const t = strings.participants;
+  const renameButton = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+
+  // After Save or Cancel the edit form disappears; put focus back on the button that opened it.
+  useEffect(() => {
+    if (wasEditing.current && !editing) renameButton.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
 
   const save = (event: FormEvent) => {
     event.preventDefault();
@@ -69,6 +84,7 @@ function ParticipantRow({ participant, dispatch, onError }: RowProps) {
       <button
         type="button"
         className="secondary"
+        ref={renameButton}
         aria-label={t.renameButtonLabel(participant.name)}
         onClick={() => setEditing(true)}
       >
@@ -78,14 +94,14 @@ function ParticipantRow({ participant, dispatch, onError }: RowProps) {
         type="button"
         className="secondary"
         aria-label={t.removeLabel(participant.name)}
-        onClick={() =>
-          onError(
-            dispatch({
-              type: 'removeParticipant',
-              id: participant.id as ParticipantId,
-            }),
-          )
-        }
+        onClick={() => {
+          const error = dispatch({
+            type: 'removeParticipant',
+            id: participant.id as ParticipantId,
+          });
+          onError(error);
+          if (!error) onRemoved();
+        }}
       >
         {t.remove}
       </button>
@@ -97,6 +113,7 @@ export function ParticipantsSection({ participants, dispatch }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState<ActionError | undefined>();
   const t = strings.participants;
+  const heading = useRef<HTMLHeadingElement>(null);
 
   const add = (event: FormEvent) => {
     event.preventDefault();
@@ -107,7 +124,9 @@ export function ParticipantsSection({ participants, dispatch }: Props) {
 
   return (
     <section aria-labelledby="participants-heading">
-      <h2 id="participants-heading">{t.heading}</h2>
+      <h2 id="participants-heading" ref={heading} tabIndex={-1}>
+        {t.heading}
+      </h2>
       {participants.length === 0 ? (
         <p>{t.empty}</p>
       ) : (
@@ -118,6 +137,7 @@ export function ParticipantsSection({ participants, dispatch }: Props) {
               participant={p}
               dispatch={dispatch}
               onError={setError}
+              onRemoved={() => heading.current?.focus()}
             />
           ))}
         </ul>

@@ -27,6 +27,7 @@ export type Action =
 
 export type ActionError =
   | 'invalid-name'
+  | 'duplicate-name'
   | 'invalid-description'
   | 'invalid-amount'
   | 'invalid-split'
@@ -49,6 +50,16 @@ const cleanName = (name: string): string | undefined => {
     ? trimmed
     : undefined;
 };
+
+/** Names are compared ignoring case, so "anna" and "Anna" count as the same person. */
+const isNameTaken = (
+  state: AppState,
+  name: string,
+  ignore?: ParticipantId,
+): boolean =>
+  state.participants.some(
+    (p) => p.id !== ignore && p.name.toLowerCase() === name.toLowerCase(),
+  );
 
 const splitParticipants = (split: SplitMode): readonly ParticipantId[] => {
   switch (split.kind) {
@@ -80,6 +91,7 @@ export const applyAction = (
     case 'addParticipant': {
       const name = cleanName(action.name);
       if (!name) return err('invalid-name');
+      if (isNameTaken(state, name)) return err('duplicate-name');
       if (state.participants.length >= LIMITS.maxParticipants)
         return err('limit-reached');
       const id = nextId(
@@ -96,6 +108,7 @@ export const applyAction = (
       if (!name) return err('invalid-name');
       if (!state.participants.some((p) => p.id === action.id))
         return err('unknown-participant');
+      if (isNameTaken(state, name, action.id)) return err('duplicate-name');
       return ok({
         ...state,
         participants: state.participants.map((p) =>

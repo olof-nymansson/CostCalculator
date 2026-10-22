@@ -104,16 +104,21 @@ link to the current state.
   every split adds up and references existing participants). A corrupt, oversized, or
   unsupported link shows a clear message and starts with an empty group; it never crashes.
 - **Size limits:** the app warns when the hash exceeds 2000 characters (links that long may
-  break in some chat apps) and refuses to open hashes over 8000 characters. A group of six
-  people with 25 expenses stays well below the soft limit (covered by a test). Hard caps of 30 participants and
-  200 expenses keep links in a workable range.
+  break in some chat apps). A group of six people with 25 expenses stays well below that (covered
+  by a test). The app allows at most 30 participants and 200 expenses; the largest state it can
+  create, with incompressible text and 30-way splits, is about 55 000 characters, so hashes up
+  to 65 000 characters are accepted (a test guards that every allowed state fits). Longer
+  hashes are rejected before decoding, and decompression is stopped at 512 KB of JSON, so a
+  small malicious link cannot expand into a huge payload.
+- **Participant names** must be unique, ignoring case, so that balances and transfers are
+  unambiguous.
 - Nothing is stored in `localStorage`; the URL is the only persistence. Bookmark the link to
   keep your data.
 
 ## Accessibility
 
 Semantic HTML with labelled form fields, visible focus indicators, error messages announced via
-`role="alert"`, results shown as text rather than colour alone, and a layout designed for
+`role="alert"` and linked to the field they concern (`aria-invalid`, focus moved to it), results shown as text rather than colour alone, and a layout designed for
 360 px width first. WCAG AA is the goal; a full manual audit has not been done yet.
 
 ## Tech stack

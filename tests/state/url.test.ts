@@ -1,8 +1,9 @@
 import { deflateSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { emptyState } from '../../src/state/model';
+import { LIMITS, emptyState } from '../../src/state/model';
 import {
   HARD_LIMIT_LENGTH,
+  MAX_JSON_BYTES,
   SOFT_LIMIT_LENGTH,
   decodeState,
   encodeState,
@@ -178,5 +179,80 @@ describe('size limit', () => {
       expenses,
     } as unknown as typeof sampleState;
     expect(encodeState(state).length).toBeLessThan(SOFT_LIMIT_LENGTH);
+  });
+});
+
+describe('limits are consistent', () => {
+  /** Deterministic pseudo-random text, so the data is as incompressible as real text gets. */
+  const randomText = (length: number, seed: number): string => {
+    const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 åäö';
+    let x = seed;
+    let out = '';
+    for (let i = 0; i < length; i++) {
+      x = (x * 1103515245 + 12345) % 2147483648;
+      out += chars[x % chars.length];
+    }
+    return out.trim().padEnd(length, 'x');
+  };
+
+  const largestAllowedState = () => {
+    const participants = Array.from(
+      { length: LIMITS.maxParticipants },
+      (_, i) => ({
+        id: `p${i + 1}`,
+        name: randomText(LIMITS.maxNameLength, i + 1),
+      }),
+    );
+    const expenses = Array.from({ length: LIMITS.maxExpenses }, (_, i) => ({
+      id: `e${i + 1}`,
+      description: randomText(LIMITS.maxDescriptionLength, 1000 + i),
+      amount: LIMITS.maxMoney - i * 7919,
+      payer: 'p1',
+      split: {
+        kind: 'exact',
+        amounts: participants.map((p, j) => ({
+          participant: p.id,
+          value: j === 0 ? 0 : 1 + ((i * 7919 + j * 104729) % 9999),
+        })),
+      },
+    }));
+    // The first participant's share is whatever makes the exact amounts add up.
+    for (const e of expenses) {
+      const rest = e.split.amounts
+        .slice(1)
+        .reduce((sum, a) => sum + a.value, 0);
+      e.amount = rest;
+      e.split.amounts[0]!.value = 0;
+    }
+    return {
+      version: 1,
+      participants,
+      expenses,
+    } as unknown as typeof sampleState;
+  };
+
+  it('can open every link the app can create, up to the allowed maximum size', () => {
+    const state = largestAllowedState();
+    const encoded = encodeState(state);
+    expect(encoded.length).toBeLessThan(HARD_LIMIT_LENGTH);
+    expect(decodeState(encoded)).toEqual({ ok: true, value: state });
+  });
+
+  it('keeps the largest allowed state below the decompression bound', () => {
+    expect(JSON.stringify(largestAllowedState()).length).toBeLessThan(
+      MAX_JSON_BYTES,
+    );
+  });
+
+  it('rejects a small link that would decompress to a huge payload', () => {
+    const bomb = Buffer.from(
+      deflateSync(new Uint8Array(20 * 1024 * 1024)),
+    ).toString('base64url');
+    expect(bomb.length).toBeLessThan(HARD_LIMIT_LENGTH);
+    expect(decodeState(bomb)).toEqual({
+      ok: false,
+      error: { kind: 'too-long' },
+    });
   });
 });

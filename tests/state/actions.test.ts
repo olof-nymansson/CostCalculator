@@ -64,6 +64,30 @@ describe('participants', () => {
     ).toBe('invalid-name');
   });
 
+  it('rejects duplicate names, ignoring case and surrounding spaces', () => {
+    for (const name of ['Anna', 'anna', ' ANNA ']) {
+      expect(rejected(sampleState, { type: 'addParticipant', name })).toBe(
+        'duplicate-name',
+      );
+    }
+  });
+
+  it("rejects renaming to another participant's name but allows changing own case", () => {
+    expect(
+      rejected(sampleState, {
+        type: 'renameParticipant',
+        id: pid('p2'),
+        name: 'anna',
+      }),
+    ).toBe('duplicate-name');
+    const renamed = run(sampleState, {
+      type: 'renameParticipant',
+      id: pid('p1'),
+      name: 'ANNA',
+    });
+    expect(renamed.participants[0]?.name).toBe('ANNA');
+  });
+
   it('enforces the participant limit', () => {
     let state = emptyState;
     for (let i = 0; i < LIMITS.maxParticipants; i++) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Action, ActionError } from '../state/actions';
 import type { AppState } from '../state/model';
 import { strings } from '../strings';
@@ -12,13 +12,16 @@ type Props = {
 
 export function ExpensesSection({ state, dispatch }: Props) {
   const t = strings.expenses;
+  const heading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState<ActionError | undefined>();
   const nameOf = (id: string) =>
     state.participants.find((p) => p.id === id)?.name ?? id;
 
   return (
     <section aria-labelledby="expenses-heading">
-      <h2 id="expenses-heading">{t.heading}</h2>
+      <h2 id="expenses-heading" ref={heading} tabIndex={-1}>
+        {t.heading}
+      </h2>
       {state.expenses.length === 0 ? (
         <p>{t.empty}</p>
       ) : (
@@ -35,9 +38,14 @@ export function ExpensesSection({ state, dispatch }: Props) {
                 type="button"
                 className="secondary"
                 aria-label={t.removeLabel(expense.description)}
-                onClick={() =>
-                  setError(dispatch({ type: 'removeExpense', id: expense.id }))
-                }
+                onClick={() => {
+                  const failure = dispatch({
+                    type: 'removeExpense',
+                    id: expense.id,
+                  });
+                  setError(failure);
+                  if (!failure) heading.current?.focus();
+                }}
               >
                 {t.remove}
               </button>

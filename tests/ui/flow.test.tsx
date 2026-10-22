@@ -179,6 +179,131 @@ describe('switching split mode', () => {
   });
 });
 
+describe('group changes while the form is in use', () => {
+  it('drops per-person values when a participant is added', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await user.selectOptions(screen.getByLabelText(/^Fördelning/), 'shares');
+    await user.type(screen.getByLabelText('Andel för Anna'), '2');
+    await addParticipant(user, 'Björn');
+    expect(
+      (screen.getByLabelText('Andel för Anna') as HTMLInputElement).value,
+    ).toBe('');
+    expect(
+      (screen.getByLabelText('Andel för Björn') as HTMLInputElement).value,
+    ).toBe('');
+  });
+
+  it('keeps the description and amount that were already typed', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await user.type(screen.getByLabelText('Beskrivning'), 'Middag');
+    await addParticipant(user, 'Björn');
+    expect(
+      (screen.getByLabelText('Beskrivning') as HTMLInputElement).value,
+    ).toBe('Middag');
+  });
+});
+
+describe('duplicate names', () => {
+  it('refuses a second participant with the same name', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await addParticipant(user, 'anna');
+    expect(screen.getByRole('alert').textContent).toContain(
+      'redan en deltagare',
+    );
+    expect(screen.getAllByRole('button', { name: /^Ta bort/ })).toHaveLength(1);
+  });
+});
+
+describe('focus and field-linked errors', () => {
+  it('focuses and marks the amount field when the amount is invalid', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await user.type(screen.getByLabelText('Beskrivning'), 'Middag');
+    await user.type(screen.getByLabelText(/^Belopp/), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Lägg till utgift' }));
+
+    const amount = screen.getByLabelText(/^Belopp/);
+    expect(document.activeElement).toBe(amount);
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    const errorId = amount.getAttribute('aria-describedby');
+    expect(document.getElementById(errorId ?? '')?.textContent).toContain(
+      'giltigt belopp',
+    );
+  });
+
+  it('focuses the first per-person field when the split is wrong', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await user.type(screen.getByLabelText('Beskrivning'), 'Hyra');
+    await user.type(screen.getByLabelText(/^Belopp/), '100');
+    await user.selectOptions(screen.getByLabelText(/^Fördelning/), 'percent');
+    await user.type(screen.getByLabelText('Procent för Anna'), '50');
+    await user.click(screen.getByRole('button', { name: 'Lägg till utgift' }));
+    expect(document.activeElement).toBe(
+      screen.getByLabelText('Procent för Anna'),
+    );
+    expect(document.activeElement?.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('returns focus to the description field after adding an expense', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await addEqualExpense(user, 'Middag', '100', 'Anna');
+    expect(document.activeElement).toBe(screen.getByLabelText('Beskrivning'));
+  });
+
+  it('moves focus to the section heading after removing an expense', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await addEqualExpense(user, 'Middag', '100', 'Anna');
+    await user.click(
+      screen.getByRole('button', { name: 'Ta bort utgiften Middag' }),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { name: 'Utgifter' }),
+    );
+  });
+
+  it('moves focus to the section heading after removing a participant', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await user.click(screen.getByRole('button', { name: 'Ta bort Anna' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { name: 'Deltagare' }),
+    );
+  });
+
+  it('returns focus to the rename button after saving or cancelling a rename', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+
+    await user.click(screen.getByRole('button', { name: 'Byt namn på Anna' }));
+    await user.click(screen.getByRole('button', { name: 'Avbryt' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Byt namn på Anna' }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Byt namn på Anna' }));
+    await user.type(screen.getByLabelText('Nytt namn för Anna'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Spara' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Byt namn på Annax' }),
+    );
+  });
+});
+
 describe('participants', () => {
   it('renames a participant', async () => {
     const user = userEvent.setup();
