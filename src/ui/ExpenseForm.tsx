@@ -129,7 +129,6 @@ export function ExpenseForm({ participants, dispatch }: Props) {
 
   return (
     <form onSubmit={submit} aria-labelledby="new-expense-heading">
-      <h3 id="new-expense-heading">{t.newHeading}</h3>
       <label>
         {t.description}
         <input

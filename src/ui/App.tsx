@@ -17,32 +17,38 @@ export function App() {
   } = useAppState();
 
   return (
-    <main>
-      <h1>{strings.appTitle}</h1>
-      <p>{strings.appIntro}</p>
-      {loadError && (
-        <div role="alert" className="error banner">
-          <p>{strings.errors.load[loadError.kind]}</p>
-          <button
-            type="button"
-            className="secondary"
-            onClick={dismissLoadError}
-          >
-            {strings.errors.dismiss}
-          </button>
+    <>
+      <header className="app-header">
+        <div className="page">
+          <h1>{strings.appTitle}</h1>
+          <p>{strings.appIntro}</p>
         </div>
-      )}
-      <ParticipantsSection
-        participants={state.participants}
-        dispatch={dispatch}
-      />
-      <ExpensesSection state={state} dispatch={dispatch} />
-      <SummarySection state={state} />
-      <ShareSection
-        shareUrl={shareUrl}
-        tooLong={shareUrlTooLong}
-        copy={copyShareUrl}
-      />
-    </main>
+      </header>
+      <main className="page">
+        {loadError && (
+          <div role="alert" className="error banner">
+            <p>{strings.errors.load[loadError.kind]}</p>
+            <button
+              type="button"
+              className="secondary"
+              onClick={dismissLoadError}
+            >
+              {strings.errors.dismiss}
+            </button>
+          </div>
+        )}
+        <ParticipantsSection
+          participants={state.participants}
+          dispatch={dispatch}
+        />
+        <ExpensesSection state={state} dispatch={dispatch} />
+        <SummarySection state={state} dispatch={dispatch} />
+        <ShareSection
+          shareUrl={shareUrl}
+          tooLong={shareUrlTooLong}
+          copy={copyShareUrl}
+        />
+      </main>
+    </>
   );
 }
