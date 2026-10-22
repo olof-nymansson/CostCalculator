@@ -1,4 +1,5 @@
 # CostCalculator
+n**Live app:** https://olof-nymansson.github.io/CostCalculator/
 
 A small web app that answers "who owes whom" when a group shares costs: a trip, a shared
 flat, a dinner. Add participants and expenses, and get a balance per person plus a short list
