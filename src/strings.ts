@@ -58,6 +58,9 @@ export const strings = {
 
   summary: {
     heading: 'Sammanfattning',
+    total: 'Totalt för alla utgifter',
+    donutLabel: (total: string) =>
+      `Cirkeldiagram över alla utgifter, totalt ${total}`,
     balances: 'Saldo',
     positive: 'ska få',
     negative: 'ska betala',
