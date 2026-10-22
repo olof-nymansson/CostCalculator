@@ -123,7 +123,7 @@ export function ParticipantsSection({ participants, dispatch }: Props) {
   };
 
   return (
-    <section aria-labelledby="participants-heading">
+    <section aria-labelledby="participants-heading" className="step">
       <h2 id="participants-heading" ref={heading} tabIndex={-1}>
         {t.heading}
       </h2>

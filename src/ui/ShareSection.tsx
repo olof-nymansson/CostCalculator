@@ -14,7 +14,7 @@ export function ShareSection({ shareUrl, tooLong, copy }: Props) {
   useEffect(() => setStatus(''), [shareUrl]);
 
   return (
-    <section aria-labelledby="share-heading">
+    <section aria-labelledby="share-heading" className="step">
       <h2 id="share-heading">{t.heading}</h2>
       <p>{t.note}</p>
       <label>
