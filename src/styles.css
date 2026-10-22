@@ -106,6 +106,14 @@ main {
   position: relative;
 }
 
+.step:nth-of-type(1) {
+  --step-color: #1d4ed8;
+}
+
+.step:nth-of-type(2) {
+  --step-color: #b45309;
+}
+
 .step:nth-of-type(3) {
   --step-color: var(--positive);
 }
@@ -233,6 +241,36 @@ button.secondary {
 
 .grow {
   flex: 1 1 10rem;
+}
+
+.donut-total {
+  margin: 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.donut-chart {
+  display: block;
+  width: min(100%, 16rem);
+  margin: 0.5rem auto;
+}
+
+.donut-center {
+  fill: var(--text);
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.donut-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.donut-swatch {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
 }
 
 .balance-item {

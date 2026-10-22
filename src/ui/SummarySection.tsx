@@ -4,6 +4,7 @@ import type { Action, ActionError } from '../state/actions';
 import type { AppState } from '../state/model';
 import { strings } from '../strings';
 import { formatMoney } from './amount';
+import { ExpenseDonut } from './ExpenseDonut';
 import { ExpenseList } from './ExpenseList';
 
 type Props = {
@@ -21,6 +22,7 @@ export function SummarySection({ state, dispatch }: Props) {
   return (
     <section aria-labelledby="summary-heading" className="step">
       <h2 id="summary-heading">{t.heading}</h2>
+      <ExpenseDonut expenses={state.expenses} />
       <ExpenseList state={state} dispatch={dispatch} />
       <h3>{t.balances}</h3>
       <ul className="list balance-chart">

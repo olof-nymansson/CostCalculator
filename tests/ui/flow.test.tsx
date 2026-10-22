@@ -45,6 +45,12 @@ describe('central flow: add expense → see balance → share link → open link
       within(summary).getByText(/Björn betalar Anna 50,00\s+kr/),
     ).toBeTruthy();
     expect(within(summary).getByText(/ska få 50,00\s+kr/)).toBeTruthy();
+    expect(
+      within(summary).getByText(/Totalt för alla utgifter/).textContent,
+    ).toMatch(/100,00\s+kr/);
+    expect(
+      within(summary).getByRole('img', { name: /Cirkeldiagram/ }),
+    ).toBeTruthy();
     expect(within(summary).getByText(/ska betala 50,00\s+kr/)).toBeTruthy();
 
     // Share link contains the state in the hash and is what gets copied
@@ -62,7 +68,8 @@ describe('central flow: add expense → see balance → share link → open link
 
     expect(screen.getAllByText('Anna').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Björn').length).toBeGreaterThan(0);
-    expect(screen.getByText('Middag')).toBeTruthy();
+    // Shown both in the donut legend and in the expense list.
+    expect(screen.getAllByText('Middag')).toHaveLength(2);
     const restored = screen.getByRole('region', { name: 'Sammanfattning' });
     expect(
       within(restored).getByText(/Björn betalar Anna 50,00\s+kr/),
