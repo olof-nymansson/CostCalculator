@@ -43,8 +43,6 @@ No external runtime dependencies beyond the framework and, if needed, a small co
 
 ## Commands
 
-Update this list when the scripts exist in `package.json`.
-
 ```
 npm install        # install dependencies
 npm run dev        # start dev server
@@ -70,7 +68,7 @@ src/
     settle.ts      # Settlement algorithm (minimize number of transfers)
   state/       # Data model, serialization, URL encoding, versioning
   ui/          # Components and pages
-  main.ts
+  main.tsx
 tests/         # Mirror src/core and src/state
 ```
 
@@ -81,7 +79,7 @@ Rules:
 ### Architecture principles
 
 - **Pure core:** functions in `core/` are pure. Same input, same output, no side effects.
-- **All I/O in one layer:** reading and writing the URL hash, localStorage and the service worker happens only in `state/` (and thin wiring in `main.ts`). Nothing else touches `window`, `document` or storage.
+- **All I/O in one layer:** reading and writing the URL hash, localStorage and the service worker happens only in `state/` (and thin wiring in `main.tsx`). Nothing else touches `window`, `document` or storage.
 - **One responsibility per function and module.** If a function needs "and" in its description, split it.
 - **No global mutable state.** State flows in one direction: state → UI → events → new state.
 - **Make illegal states unrepresentable.** Use types (e.g. a discriminated union for split modes) instead of runtime flags and comments.
@@ -91,7 +89,8 @@ Rules:
 ## Domain rules (important)
 
 ### Money
-- Amounts are always stored as **integers in öre** (SEK × 100). Never use floating-point `number` for calculation.
+- Amounts are always stored as **integers in öre** (SEK × 100), typed as `Money` (a branded number created with `toMoney()`). Never use floating-point `number` for calculation.
+- Percentages are stored as **basis points** (25.5 % = 2550), also integers.
 - Format and parse amounts only in the UI layer.
 - When a split is uneven (e.g. 100 SEK among 3 people), the remaining öre must be distributed deterministically so that the sum of the shares always equals the expense exactly. Use a fixed rule (e.g. largest remainder method with a stable sort on participant id) and document it.
 - The sum of all balances must always be exactly 0. Add an invariant test for this.
