@@ -158,6 +158,27 @@ describe('other split modes', () => {
   });
 });
 
+describe('switching split mode', () => {
+  it('clears per-person values and explains that shares must be whole numbers', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+
+    await user.selectOptions(screen.getByLabelText(/^Fördelning/), 'percent');
+    await user.type(screen.getByLabelText('Procent för Anna'), '33,33');
+    await user.selectOptions(screen.getByLabelText(/^Fördelning/), 'shares');
+    expect(
+      (screen.getByLabelText('Andel för Anna') as HTMLInputElement).value,
+    ).toBe('');
+
+    await user.type(screen.getByLabelText('Beskrivning'), 'Hyra');
+    await user.type(screen.getByLabelText(/^Belopp/), '100');
+    await user.type(screen.getByLabelText('Andel för Anna'), '1,5');
+    await user.click(screen.getByRole('button', { name: 'Lägg till utgift' }));
+    expect(screen.getByRole('alert').textContent).toContain('heltal');
+  });
+});
+
 describe('participants', () => {
   it('renames a participant', async () => {
     const user = userEvent.setup();

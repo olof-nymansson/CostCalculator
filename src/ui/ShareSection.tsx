@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { strings } from '../strings';
 
 type Props = {
@@ -10,6 +10,8 @@ type Props = {
 export function ShareSection({ shareUrl, tooLong, copy }: Props) {
   const t = strings.share;
   const [status, setStatus] = useState('');
+
+  useEffect(() => setStatus(''), [shareUrl]);
 
   return (
     <section aria-labelledby="share-heading">

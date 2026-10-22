@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyAction } from './actions';
 import type { Action, ActionError } from './actions';
 import type { AppState, ParseError } from './model';
@@ -28,11 +28,12 @@ const hashFor = (state: AppState): string =>
  * link is opened or pasted into the address bar of an already open tab).
  */
 export const useAppState = (): AppStateApi => {
-  const initial = useRef(loadFromHash(window.location.hash));
-  const [state, setState] = useState<AppState>(initial.current.state);
+  const [initial] = useState(() => loadFromHash(window.location.hash));
+  const [state, setState] = useState<AppState>(initial.state);
   const [loadError, setLoadError] = useState<ParseError | undefined>(
-    initial.current.error,
+    initial.error,
   );
+  const hash = useMemo(() => hashFor(state), [state]);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -40,14 +41,13 @@ export const useAppState = (): AppStateApi => {
       isFirstRender.current = false;
       return;
     }
-    const hash = hashFor(state);
     const { pathname, search } = window.location;
     window.history.replaceState(
       null,
       '',
       hash === '' ? pathname + search : `#${hash}`,
     );
-  }, [state]);
+  }, [hash]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -70,7 +70,6 @@ export const useAppState = (): AppStateApi => {
     [state],
   );
 
-  const hash = hashFor(state);
   const { origin, pathname, search } = window.location;
   const shareUrl = `${origin}${pathname}${search}${hash === '' ? '' : `#${hash}`}`;
 

@@ -51,7 +51,9 @@ export function ExpenseForm({ participants, dispatch }: Props) {
         built.error === 'invalid-amount'
           ? strings.errors.invalidAmount
           : built.error === 'invalid-value'
-            ? strings.errors.invalidValue
+            ? kind === 'shares'
+              ? strings.errors.invalidShares
+              : strings.errors.invalidValue
             : strings.errors.noSharers,
       );
       return;
@@ -94,8 +96,8 @@ export function ExpenseForm({ participants, dispatch }: Props) {
           autoComplete="off"
           aria-describedby="amount-hint"
         />
-        <small id="amount-hint">{t.amountHint}</small>
       </label>
+      <small id="amount-hint">{t.amountHint}</small>
       <label>
         {t.payer}
         <select value={payer} onChange={(e) => setPayerId(e.target.value)}>
@@ -110,7 +112,11 @@ export function ExpenseForm({ participants, dispatch }: Props) {
         {t.split}
         <select
           value={kind}
-          onChange={(e) => setKind(e.target.value as SplitKind)}
+          onChange={(e) => {
+            setKind(e.target.value as SplitKind);
+            setValues({});
+            setError(undefined);
+          }}
         >
           {KINDS.map((k) => (
             <option key={k} value={k}>
@@ -120,7 +126,7 @@ export function ExpenseForm({ participants, dispatch }: Props) {
         </select>
       </label>
       <fieldset aria-describedby="split-hint">
-        <legend>{t.splitKinds[kind]}</legend>
+        <legend>{t.splitLegend}</legend>
         <p id="split-hint">{t.splitHints[kind]}</p>
         {participants.map((p) =>
           kind === 'equal' ? (

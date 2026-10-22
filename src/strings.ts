@@ -31,6 +31,7 @@ export const strings = {
     amountHint: 'Till exempel 249,50',
     payer: 'Betalad av',
     split: 'Fördelning',
+    splitLegend: 'Vem delar utgiften?',
     splitKinds: {
       equal: 'Lika',
       shares: 'Andelar',
@@ -104,6 +105,7 @@ export const strings = {
         'Du har nått maxgränsen för antal deltagare eller utgifter.',
     } satisfies Record<ActionError, string>,
     invalidAmount: 'Ange ett giltigt belopp, till exempel 249,50.',
+    invalidShares: 'Andelar måste vara heltal, till exempel 1, 2 eller 3.',
     invalidValue:
       'Något värde i fördelningen är ogiltigt. Använd siffror, och högst två decimaler.',
     noSharers: 'Välj minst en person som delar utgiften.',

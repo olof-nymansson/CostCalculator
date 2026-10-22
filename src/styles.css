@@ -112,7 +112,7 @@ button.secondary {
 }
 
 :focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
