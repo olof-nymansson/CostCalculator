@@ -134,6 +134,10 @@ button.secondary {
   align-items: flex-end;
 }
 
+.row > label {
+  margin-bottom: 0;
+}
+
 .list .row {
   align-items: center;
 }
