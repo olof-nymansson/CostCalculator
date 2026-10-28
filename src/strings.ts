@@ -72,15 +72,11 @@ export const strings = {
   },
 
   share: {
-    heading: 'Dela',
-    copy: 'Kopiera länk',
-    linkLabel: 'Länk att dela',
-    copied: 'Länken kopierades.',
-    copyFailed:
-      'Det gick inte att kopiera. Markera länken och kopiera den manuellt.',
+    copy: 'Dela',
+    copied: 'Länk kopierad',
+    copyFailed: 'Det gick inte att kopiera länken.',
     tooLong:
       'Länken är lång och fungerar kanske inte överallt, till exempel i vissa chattappar.',
-    note: 'Den som öppnar länken ser en kopia av just nu. Ändringar synkas inte.',
   },
 
   errors: {

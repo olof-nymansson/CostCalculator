@@ -55,8 +55,8 @@ describe('central flow: add expense → see balance → share link → open link
 
     // Share link contains the state in the hash and is what gets copied
     expect(window.location.hash.length).toBeGreaterThan(1);
-    await user.click(screen.getByRole('button', { name: 'Kopiera länk' }));
-    expect(await screen.findByText('Länken kopierades.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Dela' }));
+    expect(await screen.findByText('Länk kopierad')).toBeTruthy();
     const copied = await navigator.clipboard.readText();
     expect(copied).toContain(window.location.hash);
 

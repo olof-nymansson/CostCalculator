@@ -2,7 +2,7 @@ import { useAppState } from '../state/useAppState';
 import { strings } from '../strings';
 import { ExpensesSection } from './ExpensesSection';
 import { ParticipantsSection } from './ParticipantsSection';
-import { ShareSection } from './ShareSection';
+import { ShareButton } from './ShareButton';
 import { SummarySection } from './SummarySection';
 
 export function App() {
@@ -22,6 +22,11 @@ export function App() {
         <div className="page">
           <h1>{strings.appTitle}</h1>
           <p>{strings.appIntro}</p>
+          <ShareButton
+            shareUrl={shareUrl}
+            tooLong={shareUrlTooLong}
+            copy={copyShareUrl}
+          />
         </div>
       </header>
       <main className="page">
@@ -43,11 +48,6 @@ export function App() {
         />
         <ExpensesSection state={state} dispatch={dispatch} />
         <SummarySection state={state} dispatch={dispatch} />
-        <ShareSection
-          shareUrl={shareUrl}
-          tooLong={shareUrlTooLong}
-          copy={copyShareUrl}
-        />
       </main>
     </>
   );
