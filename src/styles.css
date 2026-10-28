@@ -51,9 +51,65 @@ body {
   padding-bottom: 1.5rem;
 }
 
+.app-header .page {
+  position: relative;
+}
+
 .app-header h1,
 .app-header p {
   margin: 0;
+}
+
+.share-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  max-width: 16rem;
+  text-align: right;
+}
+
+.toast-region {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  max-width: calc(100% - 2rem);
+  pointer-events: none;
+}
+
+.app-header .toast {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--positive);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 30%);
+}
+
+.app-header .toast.toast-error {
+  background: var(--error);
+}
+
+.app-header button.header-button {
+  background: transparent;
+  color: var(--header-text);
+  border-color: var(--header-text);
+}
+
+.app-header :focus-visible {
+  outline-color: var(--header-text);
+}
+
+@media (max-width: 40rem) {
+  .share-button {
+    position: static;
+    margin-top: 0.75rem;
+    max-width: none;
+    text-align: left;
+  }
 }
 
 .app-header p {
@@ -116,10 +172,6 @@ main {
 
 .step:nth-of-type(3) {
   --step-color: var(--positive);
-}
-
-.step:nth-of-type(4) {
-  --step-color: #5b3f9e;
 }
 
 h1 {
