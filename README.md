@@ -11,8 +11,8 @@ of suggested transfers to settle up. The UI is in Swedish (SEK).
 
 ## Scope
 
-**In scope:** participants (add, rename, remove), expenses (description, amount, payer, who
-shares it), four split modes (equal, shares, exact amounts, percentages), balances, suggested
+**In scope:** participants (add, rename, remove), expenses (add, edit, remove; description,
+amount, payer, who shares it), four split modes (equal, shares, exact amounts, percentages), balances, suggested
 transfers, sharing the result as a link, mobile-friendly and accessible UI.
 
 **Deliberately out of scope:**
@@ -22,8 +22,7 @@ transfers, sharing the result as a link, mobile-friendly and accessible UI.
   sharing are not synced.
 - Actual payments.
 
-Not built yet: editing an existing expense (remove it and add it again), offline support as a
-PWA, and automatic deployment.
+Not built yet: offline support as a PWA, and automatic deployment.
 
 ## Getting started
 
