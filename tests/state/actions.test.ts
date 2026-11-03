@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { computeBalances } from '../../src/core/balances';
 import type { ExpenseId } from '../../src/core/balances';
 import type { ParticipantId } from '../../src/core/types';
 import { applyAction } from '../../src/state/actions';
@@ -239,6 +240,107 @@ describe('expenses', () => {
     );
   });
 
+  describe('updateExpense', () => {
+    const update = (
+      state: AppState,
+      id: string,
+      overrides: Partial<NewExpense> = {},
+    ) =>
+      applyAction(state, {
+        type: 'updateExpense',
+        id: id as ExpenseId,
+        expense: newExpense(overrides),
+      });
+
+    it('replaces the fields but keeps the id and the position in the list', () => {
+      const state = run(sampleState, {
+        type: 'updateExpense',
+        id: 'e1' as ExpenseId,
+        expense: newExpense({ description: ' Brunch ', amount: 7000 }),
+      });
+      expect(state.expenses.map((e) => e.id)).toEqual(['e1', 'e2']);
+      expect(state.expenses[0]).toEqual({
+        id: 'e1',
+        description: 'Brunch',
+        amount: 7000,
+        payer: 'p1',
+        split: { kind: 'equal', participants: ['p1', 'p2'] },
+      });
+      expect(state.expenses[1]).toEqual(sampleState.expenses[1]);
+    });
+
+    it('can change payer and split mode', () => {
+      const split = {
+        kind: 'shares',
+        weights: [
+          { participant: pid('p2'), value: 1 },
+          { participant: pid('p3'), value: 2 },
+        ],
+      } as const;
+      const state = run(sampleState, {
+        type: 'updateExpense',
+        id: 'e2' as ExpenseId,
+        expense: newExpense({ payer: pid('p3'), split }),
+      });
+      expect(state.expenses[1]).toMatchObject({ payer: 'p3', split });
+    });
+
+    it('is allowed when the expense limit has been reached', () => {
+      let state = sampleState;
+      while (state.expenses.length < LIMITS.maxExpenses) {
+        state = run(state, { type: 'addExpense', expense: newExpense() });
+      }
+      expect(update(state, 'e1').ok).toBe(true);
+    });
+
+    it('keeps the balances summing to exactly zero', () => {
+      const split = {
+        kind: 'equal',
+        participants: [pid('p1'), pid('p2'), pid('p3')],
+      } as const;
+      const state = run(sampleState, {
+        type: 'updateExpense',
+        id: 'e1' as ExpenseId,
+        expense: newExpense({ amount: 10001, split }),
+      });
+      const balances = computeBalances(
+        state.participants.map((p) => p.id),
+        state.expenses,
+      );
+      if (!balances.ok) throw new Error('balances failed');
+      expect(balances.value.reduce((sum, b) => sum + b.amount, 0)).toBe(0);
+    });
+
+    it('rejects an unknown expense', () => {
+      expect(update(sampleState, 'e9')).toEqual({
+        ok: false,
+        error: 'unknown-expense',
+      });
+    });
+
+    it('rejects invalid input with the same errors as adding', () => {
+      const emptySplit = { kind: 'equal', participants: [] } as const;
+      const unknownSharer = { kind: 'equal', participants: [pid('p9')] };
+      const cases: [Partial<NewExpense>, string][] = [
+        [{ description: ' ' }, 'invalid-description'],
+        [{ amount: -1 }, 'invalid-amount'],
+        [{ amount: LIMITS.maxMoney + 1 }, 'invalid-amount'],
+        [{ payer: pid('p9') }, 'unknown-participant'],
+        [
+          { split: unknownSharer as NewExpense['split'] },
+          'unknown-participant',
+        ],
+        [{ split: emptySplit }, 'invalid-split'],
+      ];
+      for (const [overrides, error] of cases) {
+        expect(update(sampleState, 'e1', overrides)).toEqual({
+          ok: false,
+          error,
+        });
+      }
+    });
+  });
+
   it('removes an expense and frees its participants', () => {
     const afterExpenses = ['e1', 'e2'].reduce(
       (state, id) => run(state, { type: 'removeExpense', id: id as ExpenseId }),
@@ -264,6 +366,11 @@ describe('purity', () => {
     run(sampleState, { type: 'addParticipant', name: 'Dan' });
     run(sampleState, { type: 'addExpense', expense: newExpense() });
     run(sampleState, { type: 'removeExpense', id: 'e1' as ExpenseId });
+    run(sampleState, {
+      type: 'updateExpense',
+      id: 'e1' as ExpenseId,
+      expense: newExpense(),
+    });
     expect(JSON.stringify(sampleState)).toBe(snapshot);
   });
 });

@@ -5,7 +5,7 @@ import type { SplitMode } from '../core/split';
 import { err, ok } from '../core/types';
 import type { ParticipantId, Result } from '../core/types';
 import { LIMITS } from './model';
-import type { AppState } from './model';
+import type { AppState, ExpenseEntry } from './model';
 
 export type NewExpense = {
   readonly description: string;
@@ -23,6 +23,11 @@ export type Action =
     }
   | { readonly type: 'removeParticipant'; readonly id: ParticipantId }
   | { readonly type: 'addExpense'; readonly expense: NewExpense }
+  | {
+      readonly type: 'updateExpense';
+      readonly id: ExpenseId;
+      readonly expense: NewExpense;
+    }
   | { readonly type: 'removeExpense'; readonly id: ExpenseId };
 
 export type ActionError =
@@ -79,6 +84,41 @@ const isUsedInExpenses = (state: AppState, id: ParticipantId): boolean =>
     (e) => e.payer === id || splitParticipants(e.split).includes(id),
   );
 
+/** Checks a new or edited expense against the group; returns it cleaned up, or the reason it is invalid. */
+const validateExpense = (
+  state: AppState,
+  expense: NewExpense,
+): Result<Omit<ExpenseEntry, 'id'>, ActionError> => {
+  const description = expense.description.trim();
+  if (
+    description.length < 1 ||
+    description.length > LIMITS.maxDescriptionLength
+  ) {
+    return err('invalid-description');
+  }
+  if (
+    !Number.isSafeInteger(expense.amount) ||
+    expense.amount < 0 ||
+    expense.amount > LIMITS.maxMoney
+  ) {
+    return err('invalid-amount');
+  }
+
+  const known = new Set(state.participants.map((p) => p.id));
+  const involved = [expense.payer, ...splitParticipants(expense.split)];
+  if (!involved.every((id) => known.has(id))) return err('unknown-participant');
+
+  const amount = toMoney(expense.amount);
+  if (!splitExpense(amount, expense.split).ok) return err('invalid-split');
+
+  return ok({
+    description,
+    amount,
+    payer: expense.payer,
+    split: expense.split,
+  });
+};
+
 /**
  * Pure state transition. Returns an error instead of a new state when the action is not
  * allowed, so the caller can show a message and keep the old state.
@@ -126,31 +166,10 @@ export const applyAction = (
       });
     }
     case 'addExpense': {
-      const { expense } = action;
-      const description = expense.description.trim();
-      if (
-        description.length < 1 ||
-        description.length > LIMITS.maxDescriptionLength
-      ) {
-        return err('invalid-description');
-      }
-      if (
-        !Number.isSafeInteger(expense.amount) ||
-        expense.amount < 0 ||
-        expense.amount > LIMITS.maxMoney
-      ) {
-        return err('invalid-amount');
-      }
+      const validated = validateExpense(state, action.expense);
+      if (!validated.ok) return validated;
       if (state.expenses.length >= LIMITS.maxExpenses)
         return err('limit-reached');
-
-      const known = new Set(state.participants.map((p) => p.id));
-      const involved = [expense.payer, ...splitParticipants(expense.split)];
-      if (!involved.every((id) => known.has(id)))
-        return err('unknown-participant');
-
-      const amount = toMoney(expense.amount);
-      if (!splitExpense(amount, expense.split).ok) return err('invalid-split');
 
       const id = nextId(
         'e',
@@ -158,16 +177,19 @@ export const applyAction = (
       ) as ExpenseId;
       return ok({
         ...state,
-        expenses: [
-          ...state.expenses,
-          {
-            id,
-            description,
-            amount,
-            payer: expense.payer,
-            split: expense.split,
-          },
-        ],
+        expenses: [...state.expenses, { id, ...validated.value }],
+      });
+    }
+    case 'updateExpense': {
+      if (!state.expenses.some((e) => e.id === action.id))
+        return err('unknown-expense');
+      const validated = validateExpense(state, action.expense);
+      if (!validated.ok) return validated;
+      return ok({
+        ...state,
+        expenses: state.expenses.map((e) =>
+          e.id === action.id ? { id: e.id, ...validated.value } : e,
+        ),
       });
     }
     case 'removeExpense': {
