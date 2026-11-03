@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { ExpenseId } from '../../src/core/balances';
+import { toMoney } from '../../src/core/money';
 import type { ParticipantId } from '../../src/core/types';
-import { buildExpense } from '../../src/ui/expenseDraft';
+import { LIMITS } from '../../src/state/model';
+import type { ExpenseEntry } from '../../src/state/model';
+import { buildExpense, draftFromExpense } from '../../src/ui/expenseDraft';
 import type { ExpenseDraft } from '../../src/ui/expenseDraft';
 
 const ids = ['p1', 'p2', 'p3'] as ParticipantId[];
@@ -107,5 +111,92 @@ describe('buildExpense', () => {
       ok: false,
       error: 'no-sharers',
     });
+  });
+});
+
+describe('draftFromExpense', () => {
+  const p = (value: string) => value as ParticipantId;
+  const entry = (
+    split: ExpenseEntry['split'],
+    overrides: Partial<ExpenseEntry> = {},
+  ): ExpenseEntry => ({
+    id: 'e1' as ExpenseId,
+    description: 'Middag',
+    amount: toMoney(12345),
+    payer: p('p2'),
+    split,
+    ...overrides,
+  });
+
+  const roundTrip = (expense: ExpenseEntry) => {
+    const built = buildExpense(draftFromExpense(expense), ids);
+    if (!built.ok) throw new Error(`could not rebuild: ${built.error}`);
+    return built.value;
+  };
+
+  const splits: [string, ExpenseEntry['split']][] = [
+    ['equal', { kind: 'equal', participants: [p('p1'), p('p3')] }],
+    [
+      'shares',
+      {
+        kind: 'shares',
+        weights: [
+          { participant: p('p1'), value: 1 },
+          { participant: p('p3'), value: 2 },
+        ],
+      },
+    ],
+    [
+      'exact',
+      {
+        kind: 'exact',
+        amounts: [
+          { participant: p('p1'), value: 10000 },
+          { participant: p('p2'), value: 2345 },
+        ],
+      },
+    ],
+    [
+      'percent',
+      {
+        kind: 'percent',
+        basisPoints: [
+          { participant: p('p1'), value: 3333 },
+          { participant: p('p3'), value: 6667 },
+        ],
+      },
+    ],
+  ];
+
+  it.each(splits)('rebuilds the same %s expense from its draft', (_, split) => {
+    const expense = entry(split);
+    expect(roundTrip(expense)).toEqual({
+      description: expense.description,
+      amount: expense.amount,
+      payer: expense.payer,
+      split,
+    });
+  });
+
+  it('shows the amount as plain editable text', () => {
+    expect(draftFromExpense(entry(splits[0]![1])).amount).toBe('123,45');
+    expect(
+      draftFromExpense(entry(splits[0]![1], { amount: toMoney(123456789) }))
+        .amount,
+    ).toBe('1234567,89');
+  });
+
+  it('round-trips a zero amount and the largest amount', () => {
+    for (const amount of [0, LIMITS.maxMoney]) {
+      const expense = entry(splits[0]![1], { amount: toMoney(amount) });
+      expect(roundTrip(expense).amount).toBe(amount);
+    }
+  });
+
+  it('keeps a payer who does not share the expense', () => {
+    const expense = entry({ kind: 'equal', participants: [p('p1')] });
+    const rebuilt = roundTrip(expense);
+    expect(rebuilt.payer).toBe('p2');
+    expect(rebuilt.split).toEqual(expense.split);
   });
 });

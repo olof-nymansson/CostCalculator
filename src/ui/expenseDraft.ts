@@ -1,7 +1,8 @@
 import type { SplitMode } from '../core/split';
 import type { ParticipantId } from '../core/types';
 import type { NewExpense } from '../state/actions';
-import { parseScaled, parseWhole } from './amount';
+import type { ExpenseEntry } from '../state/model';
+import { formatScaled, parseScaled, parseWhole } from './amount';
 
 export type SplitKind = SplitMode['kind'];
 
@@ -15,6 +16,58 @@ export type ExpenseDraft = {
   readonly included: readonly ParticipantId[];
   /** Per-participant text for the other modes. An empty text means "does not share". */
   readonly values: Readonly<Record<string, string>>;
+};
+
+/** Scaled integer as editable text ("1234,50"): no thousands separators, so it parses back as is. */
+const toInputText = (value: number): string =>
+  formatScaled(value).replace(/\s/g, '');
+
+/** The inverse of `buildExpense`: the form text that would produce this expense. */
+export const draftFromExpense = (expense: ExpenseEntry): ExpenseDraft => {
+  const base = {
+    description: expense.description,
+    amount: toInputText(expense.amount),
+    payer: expense.payer,
+  };
+  const textOf = (
+    allocations: readonly { participant: ParticipantId; value: number }[],
+    format: (value: number) => string,
+  ): Readonly<Record<string, string>> =>
+    Object.fromEntries(
+      allocations.map(({ participant, value }) => [participant, format(value)]),
+    );
+
+  const { split } = expense;
+  switch (split.kind) {
+    case 'equal':
+      return {
+        ...base,
+        kind: 'equal',
+        included: split.participants,
+        values: {},
+      };
+    case 'shares':
+      return {
+        ...base,
+        kind: 'shares',
+        included: [],
+        values: textOf(split.weights, String),
+      };
+    case 'exact':
+      return {
+        ...base,
+        kind: 'exact',
+        included: [],
+        values: textOf(split.amounts, toInputText),
+      };
+    case 'percent':
+      return {
+        ...base,
+        kind: 'percent',
+        included: [],
+        values: textOf(split.basisPoints, toInputText),
+      };
+  }
 };
 
 export type DraftError = 'invalid-amount' | 'invalid-value' | 'no-sharers';
