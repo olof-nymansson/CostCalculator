@@ -51,6 +51,12 @@ export const strings = {
     percentFieldLabel: (name: string) => `Procent för ${name}`,
     add: 'Lägg till utgift',
     empty: 'Inga utgifter ännu.',
+    edit: 'Redigera',
+    editButtonLabel: (description: string) =>
+      `Redigera utgiften ${description}`,
+    editLabel: (description: string) => `Redigera utgiften ${description}`,
+    save: 'Spara',
+    cancel: 'Avbryt',
     remove: 'Ta bort',
     removeLabel: (description: string) => `Ta bort utgiften ${description}`,
     paidBy: (name: string) => `Betalad av ${name}`,

@@ -1,15 +1,21 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ParticipantId } from '../core/types';
 import type { Action, ActionError } from '../state/actions';
-import type { Participant } from '../state/model';
+import type { ExpenseEntry, Participant } from '../state/model';
 import { strings } from '../strings';
-import { buildExpense } from './expenseDraft';
+import { buildExpense, draftFromExpense } from './expenseDraft';
 import type { SplitKind } from './expenseDraft';
 
 type Props = {
   readonly participants: readonly Participant[];
   readonly dispatch: (action: Action) => ActionError | undefined;
+  /** Present when the form edits this expense instead of adding a new one. */
+  readonly editing?: {
+    readonly expense: ExpenseEntry;
+    readonly onDone: () => void;
+    readonly onCancel: () => void;
+  };
 };
 
 const KINDS: readonly SplitKind[] = ['equal', 'shares', 'exact', 'percent'];
@@ -18,8 +24,6 @@ const KINDS: readonly SplitKind[] = ['equal', 'shares', 'exact', 'percent'];
 type ErrorField = 'description' | 'amount' | 'split' | undefined;
 
 type FormError = { readonly message: string; readonly field: ErrorField };
-
-const ERROR_ID = 'expense-error';
 
 const actionErrorField = (error: ActionError): ErrorField =>
   error === 'invalid-description'
@@ -30,14 +34,30 @@ const actionErrorField = (error: ActionError): ErrorField =>
         ? 'split'
         : undefined;
 
-export function ExpenseForm({ participants, dispatch }: Props) {
+export function ExpenseForm({ participants, dispatch, editing }: Props) {
   const t = strings.expenses;
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [payerId, setPayerId] = useState('');
-  const [kind, setKind] = useState<SplitKind>('equal');
-  const [excluded, setExcluded] = useState<readonly string[]>([]);
-  const [values, setValues] = useState<Readonly<Record<string, string>>>({});
+  // Each form on the page needs its own ids for aria references.
+  const formId = useId();
+  const ERROR_ID = `${formId}-error`;
+  const AMOUNT_HINT_ID = `${formId}-amount-hint`;
+  const SPLIT_HINT_ID = `${formId}-split-hint`;
+  const [initial] = useState(() =>
+    editing ? draftFromExpense(editing.expense) : undefined,
+  );
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [amount, setAmount] = useState(initial?.amount ?? '');
+  const [payerId, setPayerId] = useState<string>(initial?.payer ?? '');
+  const [kind, setKind] = useState<SplitKind>(initial?.kind ?? 'equal');
+  const [excluded, setExcluded] = useState<readonly string[]>(() =>
+    initial?.kind === 'equal'
+      ? participants
+          .map((p) => p.id)
+          .filter((id) => !initial.included.includes(id))
+      : [],
+  );
+  const [values, setValues] = useState<Readonly<Record<string, string>>>(
+    initial?.values ?? {},
+  );
   const [error, setError] = useState<FormError | undefined>();
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -102,9 +122,21 @@ export function ExpenseForm({ participants, dispatch }: Props) {
       }
       return;
     }
-    const failure = dispatch({ type: 'addExpense', expense: built.value });
+    const failure = dispatch(
+      editing
+        ? {
+            type: 'updateExpense',
+            id: editing.expense.id,
+            expense: built.value,
+          }
+        : { type: 'addExpense', expense: built.value },
+    );
     if (failure) {
       fail(strings.errors.action[failure], actionErrorField(failure));
+      return;
+    }
+    if (editing) {
+      editing.onDone();
       return;
     }
     setError(undefined);
@@ -128,7 +160,12 @@ export function ExpenseForm({ participants, dispatch }: Props) {
         : t.percentFieldLabel(name);
 
   return (
-    <form onSubmit={submit} aria-labelledby="new-expense-heading">
+    <form
+      onSubmit={submit}
+      {...(editing
+        ? { 'aria-label': t.editLabel(editing.expense.description) }
+        : { 'aria-labelledby': 'new-expense-heading' })}
+    >
       <label>
         {t.description}
         <input
@@ -149,10 +186,10 @@ export function ExpenseForm({ participants, dispatch }: Props) {
           autoComplete="off"
           {...(error?.field === 'amount'
             ? invalidProps('amount')
-            : { 'aria-describedby': 'amount-hint' })}
+            : { 'aria-describedby': AMOUNT_HINT_ID })}
         />
       </label>
-      <small id="amount-hint">{t.amountHint}</small>
+      <small id={AMOUNT_HINT_ID}>{t.amountHint}</small>
       <label>
         {t.payer}
         <select value={payer} onChange={(e) => setPayerId(e.target.value)}>
@@ -183,11 +220,13 @@ export function ExpenseForm({ participants, dispatch }: Props) {
       <fieldset
         ref={splitRef}
         aria-describedby={
-          error?.field === 'split' ? `split-hint ${ERROR_ID}` : 'split-hint'
+          error?.field === 'split'
+            ? `${SPLIT_HINT_ID} ${ERROR_ID}`
+            : SPLIT_HINT_ID
         }
       >
         <legend>{t.splitLegend}</legend>
-        <p id="split-hint">{t.splitHints[kind]}</p>
+        <p id={SPLIT_HINT_ID}>{t.splitHints[kind]}</p>
         {participants.map((p) =>
           kind === 'equal' ? (
             <label key={p.id} className="check">
@@ -226,7 +265,12 @@ export function ExpenseForm({ participants, dispatch }: Props) {
           {error.message}
         </p>
       )}
-      <button type="submit">{t.add}</button>
+      <button type="submit">{editing ? t.save : t.add}</button>
+      {editing && (
+        <button type="button" className="secondary" onClick={editing.onCancel}>
+          {t.cancel}
+        </button>
+      )}
     </form>
   );
 }

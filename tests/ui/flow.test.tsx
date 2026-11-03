@@ -325,3 +325,92 @@ describe('participants', () => {
     expect(screen.queryByText('Anna')).toBeNull();
   });
 });
+
+describe('editing an expense', () => {
+  const setup = async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addParticipant(user, 'Anna');
+    await addParticipant(user, 'Björn');
+    await addEqualExpense(user, 'Middag', '100', 'Anna');
+    await user.click(
+      screen.getByRole('button', { name: 'Redigera utgiften Middag' }),
+    );
+    const form = screen.getByRole('form', { name: 'Redigera utgiften Middag' });
+    return { user, form };
+  };
+
+  it('opens the form filled in with the expense', async () => {
+    const { form } = await setup();
+    expect(
+      (within(form).getByLabelText(/^Belopp/) as HTMLInputElement).value,
+    ).toBe('100,00');
+    expect(
+      (within(form).getByLabelText('Beskrivning') as HTMLInputElement).value,
+    ).toBe('Middag');
+    expect(
+      (within(form).getByLabelText(/^Betalad av/) as HTMLSelectElement).value,
+    ).toBe('p1');
+  });
+
+  it('updates the balance and the share link when saved', async () => {
+    const { user, form } = await setup();
+    const hashBefore = window.location.hash;
+    const amount = within(form).getByLabelText(/^Belopp/);
+    await user.clear(amount);
+    await user.type(amount, '200');
+    await user.click(within(form).getByRole('button', { name: 'Spara' }));
+
+    const summary = screen.getByRole('region', { name: 'Sammanfattning' });
+    expect(
+      within(summary).getByText(/Björn betalar Anna 100,00\s+kr/),
+    ).toBeTruthy();
+    expect(window.location.hash).not.toBe(hashBefore);
+    expect(screen.queryByRole('form', { name: /Redigera/ })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Redigera utgiften Middag' }),
+    );
+  });
+
+  it('changes who shares the expense', async () => {
+    const { user, form } = await setup();
+    await user.click(within(form).getByLabelText('Björn'));
+    await user.click(within(form).getByRole('button', { name: 'Spara' }));
+    expect(screen.getByText('Alla är kvitt.')).toBeTruthy();
+  });
+
+  it('leaves everything unchanged when cancelled', async () => {
+    const { user, form } = await setup();
+    const hashBefore = window.location.hash;
+    const amount = within(form).getByLabelText(/^Belopp/);
+    await user.clear(amount);
+    await user.type(amount, '999');
+    await user.click(within(form).getByRole('button', { name: 'Avbryt' }));
+
+    const summary = screen.getByRole('region', { name: 'Sammanfattning' });
+    expect(
+      within(summary).getByText(/Björn betalar Anna 50,00\s+kr/),
+    ).toBeTruthy();
+    expect(window.location.hash).toBe(hashBefore);
+    expect(screen.queryByRole('form', { name: /Redigera/ })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Redigera utgiften Middag' }),
+    );
+  });
+
+  it('shows an error in the form and keeps editing when the input is invalid', async () => {
+    const { user, form } = await setup();
+    const amount = within(form).getByLabelText(/^Belopp/);
+    await user.clear(amount);
+    await user.type(amount, 'abc');
+    await user.click(within(form).getByRole('button', { name: 'Spara' }));
+
+    expect(within(form).getByRole('alert').textContent).toContain(
+      'giltigt belopp',
+    );
+    expect(document.activeElement).toBe(amount);
+    expect(
+      screen.getByRole('form', { name: 'Redigera utgiften Middag' }),
+    ).toBeTruthy();
+  });
+});
