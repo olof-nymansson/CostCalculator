@@ -1,28 +1,46 @@
 # CostCalculator
+
 **Live app:** https://olof-nymansson.github.io/CostCalculator/
 
 A small web app that answers "who owes whom" when a group shares costs: a trip, a shared
 flat, a dinner. Add participants and expenses, and get a balance per person plus a short list
-of suggested transfers to settle up. The UI is in Swedish (SEK).
+of suggested transfers to settle up. The UI is in Swedish (SEK). The app builds to a static site
+(suitable for GitHub Pages).
 
-- No account, no backend, no server-side storage. All data stays in the browser.
-- The whole state is encoded in the URL hash, so a link is a shareable snapshot.
-- Builds to a static site (suitable for GitHub Pages).
+## What the app does
 
-## Scope
+**Participants.** Add the people sharing the costs, rename them, or remove them. Names must be
+unique, ignoring case.
 
-**In scope:** participants (add, rename, remove), expenses (add, edit, remove; description,
-amount, payer, who shares it), four split modes (equal, shares, exact amounts, percentages), balances, suggested
-transfers, sharing the result as a link, mobile-friendly and accessible UI.
+**Expenses.** Register each expense with a description, an amount, who paid, and who shares
+it. Expenses can be edited in place or removed. The cost can be split in four ways:
 
-**Deliberately out of scope:**
+- equally,
+- by shares (for example 2:1:1),
+- by exact amount per person,
+- by percentage.
 
-- Login, accounts, backend or database.
-- Simultaneous editing by several people. Each shared link is a snapshot; changes made after
-  sharing are not synced.
-- Actual payments.
+Uneven splits are rounded to the öre so the shares always add up to the expense exactly.
 
-Not built yet: offline support as a PWA, and automatic deployment.
+**Summary.** The app shows the total cost, a donut chart of how the expenses are distributed,
+and a balance per person (a chart plus text, so colour is never the only signal). It also
+suggests a short list of transfers that settle everyone up.
+
+**Sharing.** A share button in the header copies a link and confirms it with a toast. The link
+contains the whole state, so whoever opens it sees the same group, expenses and result as a
+snapshot.
+
+**Works anywhere.** Everything runs in the browser, with no account and no server. The UI is in
+Swedish (SEK) and designed for phones first, with keyboard support and screen-reader-friendly
+labels.
+
+### Deliberate limits
+
+- No login, accounts, backend or database.
+- No simultaneous editing. A shared link is a snapshot, and later changes are not synced.
+- No actual payments.
+
+Not built yet: offline support as a PWA.
 
 ## Getting started
 
@@ -38,6 +56,12 @@ npm run format     # Prettier
 ```
 
 Run `npm run lint && npm run typecheck && npm test` before committing.
+
+### CI and deployment
+
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) runs lint, typecheck, tests and the
+production build on every push and pull request. Pushes to `main` are deployed automatically to
+GitHub Pages.
 
 ## Architecture
 
